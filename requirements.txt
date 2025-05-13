@@ -1,0 +1,13 @@
+ipykernel
+ipython
+ipython_genutils
+jupyter_client
+jupyter_core
+matplotlib
+numpy
+pandas
+torch
+torchvision
+tqdm
+pillow
+scikit-learn
