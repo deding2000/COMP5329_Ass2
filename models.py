@@ -6,19 +6,27 @@ import torch.nn.functional as F
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()  # Compulsory operation.
-        self.conv1 = nn.Conv3d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=3)
-        self.conv2 = nn.Conv3d(32, 64, 5, stride=1, padding=2)
-        self.pool = nn.MaxPool3d(2,2)
-        self.dropout1 = nn.Dropout3d(0.25)
-        self.dropout2 = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(18513, 128)
-        self.fc2 = nn.Linear(128, 19)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, 3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(64, 128,3,stride=1,padding=1)
+        self.pool = nn.MaxPool2d(3,stride=2)
+        self.dropout1 = nn.Dropout3d(1-0.9)
+        self.dropout2 = nn.Dropout3d(1-0.75)
+        self.dropout3 = nn.Dropout(1-0.5)
+        self.fc1 = nn.Linear(28800, 1575)
+        self.fc2 = nn.Linear(1575, 19)
     
     def forward(self, x):
-        x = x.permute(1,0,2,3)
+        #x = x.permute(1,0,2,3)
+        x = self.dropout1(x)
         x = self.pool(F.relu(self.conv1(x)))
+        x = self.dropout2(x)
         x = self.pool(F.relu(self.conv2(x)))
+        x = self.dropout2(x)
+        x = self.pool(F.relu(self.conv3(x)))
+        x = self.dropout2(x)
         x = torch.flatten(x, 1) # flatten all dimensions except batch
         x = F.relu(self.fc1(x))
+        x = self.dropout3(x)
         logits = self.fc2(x)
         return logits
