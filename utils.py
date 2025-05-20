@@ -92,18 +92,25 @@ def pos_weight(df_train,barplot=False):
 
     n = len(df_train)
     count=np.zeros(19)
+    pos_weight=np.zeros(19)
     
     for i in range(n):
         labels = list(map(int,df_train.iloc[i,1].split(" ")))
         for j in range(19):
             count[j] = count[j]+labels.count(j+1)
+            if count[j]:
+                pos_weight[j]=(n-count[j])/count[j]
+            else:
+                pos_weight[j]=0
+
 
     names = np.arange(1,20)
     
     # calculate weights for the loss function
-    pos_weight  = (n - count) / count
-    pos_weight[11] = 0 # Remove class 12
+    #pos_weight  = (n - count) / count
+    #pos_weight[11] = 0 # Remove class 12
     if barplot:
         plt.bar(names,count)
+        plt.show()
     
     return torch.as_tensor(pos_weight)

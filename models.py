@@ -8,16 +8,16 @@ class CNN(nn.Module):
         super(CNN, self).__init__()  # Compulsory operation.
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(32, 64, 3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(64, 128,3,stride=1,padding=1)
+        self.conv3 = nn.Conv2d(64, 32,3,stride=1,padding=1)
         self.pool = nn.MaxPool2d(3,stride=2)
         self.bn1 = nn.BatchNorm2d(32)
         self.bn2 = nn.BatchNorm2d(64)
-        self.bn3 = nn.BatchNorm2d(128)
+        self.bn3 = nn.BatchNorm2d(32)
         self.dropout1 = nn.Dropout3d(1-0.9)
         self.dropout2 = nn.Dropout3d(1-0.75)
         self.dropout3 = nn.Dropout(1-0.5)
-        self.fc1 = nn.Linear(28800, 1575)
-        self.fc2 = nn.Linear(1575, 19)
+        self.fc1 = nn.Linear(7200, 1000)
+        self.fc2 = nn.Linear(1000, 19)
     
     def forward(self, x):
         #x = x.permute(1,0,2,3)
