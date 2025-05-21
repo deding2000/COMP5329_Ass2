@@ -35,10 +35,11 @@ def unencode(y_pred,to_cpu=True):
 
 # Custom Dataset class for our data
 class CustomImageDataset(Dataset):
-    def __init__(self, annotations_file, img_dir, transform=None, target_transform=None,targets_available=True):
+    def __init__(self, annotations_file, img_dir, transform=None, target_transform=None,transform_aug = None,targets_available=True):
         self.img_labels = annotations_file
         self.img_dir = img_dir
         self.transform = transform
+        self.transform_aug = transform_aug
         self.target_transform = target_transform
         self.targets_available = targets_available
 
@@ -52,9 +53,12 @@ class CustomImageDataset(Dataset):
           label = self.img_labels.iloc[idx, 1]
         else:
           label = []
-        #print(label)
-        if self.transform:
-            image = self.transform(image)
+        
         if self.target_transform and self.targets_available:
             label = self.target_transform(label)
+        if self.transform_aug and label[0]!=1:
+            print("We are doing augmentation")
+            image = self.transform_aug(image)
+        else:
+            image = self.transform(image)
         return image, label
