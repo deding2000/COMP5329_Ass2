@@ -57,7 +57,6 @@ class CustomImageDataset(Dataset):
         if self.target_transform and self.targets_available:
             label = self.target_transform(label)
         if self.transform_aug and label[0]!=1:
-            print("We are doing augmentation")
             image = self.transform_aug(image)
         else:
             image = self.transform(image)
