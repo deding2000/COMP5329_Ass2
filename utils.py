@@ -37,27 +37,38 @@ def train_epoch(log_interval, model, device, train_loader, optimizer, epoch, los
                 100. * batch_idx / len(train_loader), loss.item()))
     return losses/len(train_loader)
             
-def train_network(log_interval,model, device, train_loader, optimizer, loss,epochs=100):
-    losses = []
+def train_network(log_interval,model, device, train_loader, test_loader,optimizer, loss,epochs=10):
+    train_losses = []
+    test_losses = []
     for epoch in tqdm(range(epochs)):
-        losses.append(train_epoch(log_interval, model, device, train_loader, optimizer, epoch, loss))
-    return losses
+        train_loss = train_epoch(log_interval, model, device, train_loader, optimizer, epoch, loss)
+        if test_loader:
+            test_loss, _, _ = test(model,device,test_loader,loss_func=loss,target_available=True)
+            test_losses.append(test_loss)
+        
+        train_losses.append(train_loss)
+    if test_loader:
+        return train_losses, test_losses
+    else:
+        return train_losses
 
-def test(model, device, test_loader, loss_func,target_available=True):
+def test(model, device, test_loader, loss_func,target_available=True,verbose=False):
     '''
     Testing the model on the test set and compute metrics.
     '''
     model.eval()  # Switch the model to evaluation mode, which prevents the dropout behavior.
     sigmoid_fun = torch.nn.Sigmoid()
     all_preds = []
+    all_targets = []
     if target_available:
         test_loss = 0
         tp = 0 # True positives
         fp = 0 # False positives
         fn = 0 # False negatives
         with torch.no_grad():  # Because this is testing and no optimization is required, the gradients are not needed.
-            for data, target in tqdm(test_loader):  # Iterate through the entire test set.
+            for data, target in (test_loader):  # Iterate through the entire test set.
                 data, target = data.to(device), target.to(device)  # Move this batch of data to the specified device.
+                all_targets.append(target.float())
                 output = model(data)  # Forward the data through the model.
                 test_loss += target.size(0)*loss_func(output, target.float()).item()  # Sum up batch loss
                 pred = torch.where(sigmoid_fun(output) >= 0.5, 1, 0)  # Get predictions in right format
@@ -74,10 +85,10 @@ def test(model, device, test_loader, loss_func,target_available=True):
         precision = tp/(tp+fp)
         recall = tp/(tp+fn)
         F1 = (2*precision*recall)/(precision + recall) # Compute final F1 Score
-
-        print('\nTest set results: Average loss: {:.4f}, F1 Score: {:.2f}\n'.format(
-            test_loss, F1))
-        return test_loss, F1, all_preds
+        if verbose:
+            print('\nTest set results: Average loss: {:.4f}, F1 Score: {:.2f}\n'.format(
+                test_loss, F1))
+        return test_loss, all_preds, all_targets
     else:
         for data, _ in tqdm(test_loader):  # Iterate through the entire test set.
             data = data.to(device)  # Move this batch of data to the specified device.
