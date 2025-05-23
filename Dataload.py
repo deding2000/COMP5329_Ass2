@@ -17,10 +17,13 @@ def encode(y):
   y_encoded = np.zeros(19, dtype=int)
   for i in range(len(y)):
     y_encoded[int(y[i])-1] = 1
-  return np.array(y_encoded)
+  return np.delete(y_encoded,11)
 
 def get_class(array):
-  return np.where(array > 0.5)[1] +1
+  class_pred = np.where(array > 0.5)[1] +1
+  if class_pred >= 12:
+     class_pred += 1
+  return class_pred
 
 def unencode(y_pred,to_cpu=True):
   labels = []
@@ -35,7 +38,7 @@ def unencode(y_pred,to_cpu=True):
 
 # Custom Dataset class for our data
 class CustomImageDataset(Dataset):
-    def __init__(self, annotations_file, img_dir, transform=None, target_transform=None,transform_aug = None,targets_available=True):
+    def __init__(self, annotations_file, img_dir, use_captions=False,transform=None, target_transform=None,transform_aug = None,targets_available=True):
         self.img_labels = annotations_file
         self.img_dir = img_dir
         self.transform = transform
@@ -53,11 +56,13 @@ class CustomImageDataset(Dataset):
           label = self.img_labels.iloc[idx, 1]
         else:
           label = []
-        
+
         if self.target_transform and self.targets_available:
             label = self.target_transform(label)
-        if self.transform_aug and label[0]!=1:
+        
+        if self.transform_aug and label[0] != 1:
             image = self.transform_aug(image)
         else:
             image = self.transform(image)
+
         return image, label

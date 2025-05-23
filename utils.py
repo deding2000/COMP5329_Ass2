@@ -37,13 +37,13 @@ def train_epoch(log_interval, model, device, train_loader, optimizer, epoch, los
                 100. * batch_idx / len(train_loader), loss.item()))
     return losses/len(train_loader)
             
-def train_network(log_interval,model, device, train_loader, test_loader,optimizer, loss,epochs=10):
+def train_network(log_interval,model, device, train_loader, test_loader,optimizer, loss,thresholds=[0.5]*18,epochs=10):
     train_losses = []
     test_losses = []
     for epoch in tqdm(range(epochs)):
         train_loss = train_epoch(log_interval, model, device, train_loader, optimizer, epoch, loss)
         if test_loader:
-            test_loss, _, _ = test(model,device,test_loader,loss_func=loss,target_available=True)
+            test_loss, _, _ = test(model,device,test_loader,loss_func=loss,thresholds=thresholds,target_available=True,verbose=True)
             test_losses.append(test_loss)
         
         train_losses.append(train_loss)
@@ -52,12 +52,21 @@ def train_network(log_interval,model, device, train_loader, test_loader,optimize
     else:
         return train_losses
 
-def test(model, device, test_loader, loss_func,target_available=True,verbose=False):
+def make_prediction(output, thresholds,device):
+    thresholds = torch.as_tensor(thresholds).to(device)
+    sigmoid_fun = torch.nn.Sigmoid()
+    logits = sigmoid_fun(output)
+    prediction = torch.where(logits >= thresholds, 1, 0)
+    if prediction.sum() == 0:
+        # If no logit is over threshold we predict the class with largest prob.
+        prediction = torch.nn.functional.one_hot(logits.argmax(), num_classes=18).unsqueeze(0)
+    return prediction
+
+def test(model, device, test_loader, loss_func,thresholds=[0.5]*18,target_available=True,verbose=True):
     '''
-    Testing the model on the test set and compute metrics.
+    Testing the model on the test set and output predictions and possible target predictions
     '''
     model.eval()  # Switch the model to evaluation mode, which prevents the dropout behavior.
-    sigmoid_fun = torch.nn.Sigmoid()
     all_preds = []
     all_targets = []
     if target_available:
@@ -71,7 +80,7 @@ def test(model, device, test_loader, loss_func,target_available=True,verbose=Fal
                 all_targets.append(target.float())
                 output = model(data)  # Forward the data through the model.
                 test_loss += target.size(0)*loss_func(output, target.float()).item()  # Sum up batch loss
-                pred = torch.where(sigmoid_fun(output) >= 0.5, 1, 0)  # Get predictions in right format
+                pred = make_prediction(output,thresholds,device) # Get predictions in right format
                 all_preds.append(pred)
                 tp_temp = (pred*target).sum().item()
                 fp_temp = (torch.maximum(pred-target,torch.zeros_like(pred))).sum().item()
@@ -86,42 +95,44 @@ def test(model, device, test_loader, loss_func,target_available=True,verbose=Fal
         recall = tp/(tp+fn)
         F1 = (2*precision*recall)/(precision + recall) # Compute final F1 Score
         if verbose:
-            print('\nTest set results: Average loss: {:.4f}, F1 Score: {:.2f}\n'.format(
+            print('\nTest set results: Average loss: {:.4f}, F1 Score: {:.2f}'.format(
                 test_loss, F1))
         return test_loss, all_preds, all_targets
     else:
         for data, _ in tqdm(test_loader):  # Iterate through the entire test set.
             data = data.to(device)  # Move this batch of data to the specified device.
             output = model(data)  # Forward the data through the model.
-            pred = torch.where(sigmoid_fun(output) >= 0.5, 1, 0)  # Get predictions in right format
+            pred = make_prediction(output,thresholds,device)  # Get predictions in right format
             all_preds.append(pred)
 
         print('\nPredictions computed for test set.')
         return all_preds
     
-def pos_weight(df_train,barplot=False):
+def pos_weight(df_train,barplot=False,normalize=False):
 
     n = len(df_train)
-    count=np.zeros(19)
-    pos_weight=np.zeros(19)
+    count=np.zeros(18)
     
     for i in range(n):
         labels = list(map(int,df_train.iloc[i,1].split(" ")))
-        for j in range(19):
-            count[j] = count[j]+labels.count(j+1)
-            if count[j]:
-                pos_weight[j]=(n-count[j])/count[j]
+        for j in range(18):
+            if j < 11:
+                count[j] = count[j]+labels.count(j+1)
             else:
-                pos_weight[j]=0
-
-
-    names = np.arange(1,20)
+                count[j] = count[j]+labels.count(j+2)
     
-    # calculate weights for the loss function
-    #pos_weight  = (n - count) / count
-    #pos_weight[11] = 0 # Remove class 12
+    print("Class counts: {}".format(torch.as_tensor(count)))
+    total_samples = count.sum()
+    # Compute weights (inverse frequency)
+    class_weights = total_samples / count
+    # Normalize weights (optional)
+    if normalize:
+        class_weights /= class_weights.max()
+    print("Class weights: {}".format(torch.as_tensor(class_weights)))
+    
     if barplot:
+        names = np.array(np.arange(1,12),np.arange(13,20))
         plt.bar(names,count)
         plt.show()
     
-    return torch.as_tensor(pos_weight)
+    return torch.as_tensor(class_weights)
