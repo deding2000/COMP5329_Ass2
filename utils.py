@@ -52,17 +52,17 @@ def train_network(log_interval,model, device, train_loader, test_loader,optimize
     else:
         return train_losses
 
-def make_prediction(output, thresholds,device):
+def make_prediction(output, thresholds,device,predict_all=True):
     thresholds = torch.as_tensor(thresholds).to(device)
     sigmoid_fun = torch.nn.Sigmoid()
     logits = sigmoid_fun(output)
     prediction = torch.where(logits >= thresholds, 1, 0)
-    if prediction.sum() == 0:
+    if prediction.sum() == 0 and predict_all:
         # If no logit is over threshold we predict the class with largest prob.
         prediction = torch.nn.functional.one_hot(logits.argmax(), num_classes=18).unsqueeze(0)
     return prediction
 
-def test(model, device, test_loader, loss_func,thresholds=[0.5]*18,target_available=True,verbose=True):
+def test(model, device, test_loader, loss_func,thresholds=[0.5]*18,target_available=True,verbose=True,predict_all=True):
     '''
     Testing the model on the test set and output predictions and possible target predictions
     '''
@@ -80,7 +80,7 @@ def test(model, device, test_loader, loss_func,thresholds=[0.5]*18,target_availa
                 all_targets.append(target.float())
                 output = model(data)  # Forward the data through the model.
                 test_loss += target.size(0)*loss_func(output, target.float()).item()  # Sum up batch loss
-                pred = make_prediction(output,thresholds,device) # Get predictions in right format
+                pred = make_prediction(output,thresholds,device,predict_all) # Get predictions in right format
                 all_preds.append(pred)
                 tp_temp = (pred*target).sum().item()
                 fp_temp = (torch.maximum(pred-target,torch.zeros_like(pred))).sum().item()
@@ -102,7 +102,7 @@ def test(model, device, test_loader, loss_func,thresholds=[0.5]*18,target_availa
         for data, _ in tqdm(test_loader):  # Iterate through the entire test set.
             data = data.to(device)  # Move this batch of data to the specified device.
             output = model(data)  # Forward the data through the model.
-            pred = make_prediction(output,thresholds,device)  # Get predictions in right format
+            pred = make_prediction(output,thresholds,device,predict_all=predict_all)  # Get predictions in right format
             all_preds.append(pred)
 
         print('\nPredictions computed for test set.')
