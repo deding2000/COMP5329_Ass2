@@ -2,8 +2,10 @@ from PIL import Image
 import numpy as np
 import os
 import pandas as pd
+import torch
 from torch.utils.data import Dataset
-from torchvision.io import read_image, transforms
+from torchvision.io import read_image
+from torchvision import transforms
 
 # Loading images
 def pil_process_image_color(image):
@@ -66,11 +68,10 @@ class CustomImageDataset(Dataset):
           label = []
 
         if self.target_transform and self.targets_available:
-          label = self.target_transform(label)
+            label = self.target_transform(label)
         
-          if label[0] != 1:
+        if self.transform_aug and label[0]!=1:
             image = self.transform_aug(image)
-  
         else:
             image = self.transform(image)
             
